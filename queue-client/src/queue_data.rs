@@ -1,3 +1,4 @@
+use core::fmt;
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use kalshi::Order;
@@ -12,6 +13,18 @@ pub enum QueueClass {
     CANCEL, 
     CANCELCONFIRM,
     FILL
+}
+
+impl fmt::Display for QueueClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            QueueClass::ORDER => write!(f, "order"),
+            QueueClass::CANCEL => write!(f, "cancel"),
+            QueueClass::ORDERCONFIRM => write!(f, "order_confirm"),
+            QueueClass::CANCELCONFIRM => write!(f, "cancel_confirm"),
+            QueueClass::FILL => write!(f, "fill")
+        }
+    }
 }
 
 /// A trait all data in Queues must implement
