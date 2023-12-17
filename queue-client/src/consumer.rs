@@ -16,7 +16,7 @@ pub struct Consumer<T: QueueData> {
 
 impl<T: QueueData> Consumer<T> {
 
-    async fn new(channel: Channel) -> Result<Self> {
+    pub async fn new(channel: Channel) -> Result<Self> {
         let name = T::class().to_string();
         // Declare the queue
         channel
@@ -26,7 +26,7 @@ impl<T: QueueData> Consumer<T> {
         Ok(Consumer { channel, name, phantom_data: PhantomData })
     }
 
-    async fn get_next(&self) -> Result<Option<T>> {
+    pub async fn get_next(&self) -> Result<Option<T>> {
         let delivery = self.channel.basic_get(&self.name, BasicGetOptions::default()).await?;
         if let Some(delivery) = delivery {
             Ok(Some(T::deserialize(delivery.data.as_slice())?))
@@ -35,7 +35,7 @@ impl<T: QueueData> Consumer<T> {
         }
     }
 
-    async fn get_all(&self) -> Result<Vec<T>> {
+    pub async fn get_all(&self) -> Result<Vec<T>> {
         let mut messages = Vec::new();
         loop {
             match self.get_next().await {
