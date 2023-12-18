@@ -471,8 +471,11 @@ dependencies = [
 name = "client-server"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "futures 0.3.29",
+ "kalshi",
  "lapin",
+ "queue-client",
  "tokio",
 ]
 
@@ -1216,8 +1219,10 @@ dependencies = [
  "clap",
  "env_logger",
  "kalshi",
+ "lapin",
  "log 0.4.20",
  "native-tls",
+ "queue-client",
  "redis-derive",
  "reqwest",
  "serde",

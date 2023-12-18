@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use crate::kalshi_wss::Action;
 
+use crate::kalshi_wss::Side;
+use kalshi::OrderType;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateOrderMessage {
     action: Action,

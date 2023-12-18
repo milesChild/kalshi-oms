@@ -9,6 +9,13 @@ use std::net::TcpStream;
 use std::env;
 use log::{debug, info, trace};
 use anyhow::anyhow;
+use lapin::{
+    options::*,
+    types::{FieldTable, AMQPValue},
+    BasicProperties, Channel, Connection, ConnectionProperties,
+};
+use queue_client::consumer::Consumer;
+use queue_client::queue_data::QueueClass;
 
 use crate::kalshi_wss::SubscribeSubMessage;
 use crate::kalshi_wss::KalshiClientSubMessage as SubMessage;
@@ -22,6 +29,7 @@ use kalshi::Order;
 
 mod constants;
 mod kalshi_wss;
+mod exchange_client_utils;
 
 extern crate kalshi;
 
@@ -66,6 +74,12 @@ async fn main() -> Result<(), anyhow::Error> {
     wss_client.send_message(&init_sub_msg.to_websocket_message())?;
 
     // 3. Create a new message queue wrapper
+    let addr = "amqp://localhost:5672";
+    let connection = Connection::connect(addr, ConnectionProperties::default()).await?;
+    let producer_channel = connection.create_channel().await?;
+    let consumer_channel = connection.create_channel().await?;
+
+    let sample_consumer = Consumer::<kalshi::Order>::new(consumer_channel).await?;
 
     // 4. Loop
         
