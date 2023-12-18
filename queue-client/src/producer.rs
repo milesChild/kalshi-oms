@@ -18,7 +18,6 @@ pub struct Producer<T: QueueData> {
 impl<T: QueueData> Producer<T> {
     // Create a new producer
     pub async fn new(channel: Channel) -> Result<Self> {
-        //let queue_name = T::class().to_string();
         let queue_name = T::class().to_string();
         // Declare the exchange
         channel

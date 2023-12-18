@@ -90,11 +90,13 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // 4. Loop
         
-    run_loop(exchange_client, wss_client, mq_consumer, mq_producer)
+    run_loop(exchange_client, wss_client, mq_consumer, mq_producer).await?;
+
+    Ok(())
 
 }
 
-fn run_loop(mut exchange_client: Kalshi, mut wss_client: Client<TlsStream<TcpStream>>, mut mq_consumer: Consumer<Order>, mut mq_producer: Producer<Order>) -> Result<(), anyhow::Error> {
+async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStream<TcpStream>>, mut mq_consumer: Consumer<Order>, mut mq_producer: Producer<Order>) -> Result<(), anyhow::Error> {
 
     loop {
         // 1. Empty the orders & cancels queue
@@ -143,7 +145,13 @@ fn run_loop(mut exchange_client: Kalshi, mut wss_client: Client<TlsStream<TcpStr
 
         // submit this dummy order to the "orders" queue using the producer
         debug!("Sending fake order: {:?}", fake_order);
-        mq_producer.publish(fake_order);
+        mq_producer.publish(fake_order).await?;
+
+        // check if the order was successfully placed in the queue
+        match mq_consumer.get_next().await? {
+            Some(order) => debug!("Successfully pulled order from the queue: {:?}", order),
+            None => debug!("Failed to pull order from the queue")
+        }
 
         // 3. Relay fills from the websocket client to the message queue wrapper
 
