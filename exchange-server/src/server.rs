@@ -27,6 +27,7 @@ use crate::exchange_client_utils::CancelOrderMessage;
 
 use kalshi::Kalshi;
 use kalshi::Order;
+use kalshi::OrderType;
 
 // FOR TESTING ONLY
 use kalshi::OrderStatus;
@@ -85,73 +86,94 @@ async fn main() -> Result<(), anyhow::Error> {
     let producer_channel = connection.create_channel().await?;
     let consumer_channel = connection.create_channel().await?;
 
-    let mq_consumer = Consumer::<kalshi::Order>::new(consumer_channel).await?;
-    let mq_producer = Producer::<kalshi::Order>::new(producer_channel).await?;
+    let order_consumer = Consumer::<kalshi::Order>::new(consumer_channel).await?;
+    let fill_producer = Producer::<FillMessage>::new(producer_channel).await?;
 
     // 4. Loop
         
-    run_loop(exchange_client, wss_client, mq_consumer, mq_producer).await?;
+    run_loop(exchange_client, wss_client, order_consumer, fill_producer).await?;
 
     Ok(())
 
 }
 
-async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStream<TcpStream>>, mut mq_consumer: Consumer<Order>, mut mq_producer: Producer<Order>) -> Result<(), anyhow::Error> {
+async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStream<TcpStream>>, mut order_consumer: Consumer<Order>, mut fill_producer: Producer<FillMessage>) -> Result<(), anyhow::Error> {
 
     loop {
         // 1. Empty the orders & cancels queue
 
-        let orders: Vec<CreateOrderMessage> = Vec::new();
-        let cancels: Vec<CancelOrderMessage> = Vec::new();
+        let orders: Vec<Order> = order_consumer.get_all().await?;
+        // let cancels: Vec<CancelOrderMessage> = Vec::new();
 
         // 2. Pass orders and cancels to the exchange client
 
         for order in orders {
             // for each order, unpack the CreateOrderMessage and call the exchange client's create_order method
             debug!("Sending order: {:?}", order);
+            let order_response: Order = exchange_client.create_order(order.action,
+                order.client_order_id,
+                order.place_count,
+                order.side,
+                order.ticker,
+                OrderType::Limit,
+                None,
+                None,
+                None,
+                None,
+                order.yes_price,
+            ).await?;
+            debug!("Order Response: {:?}", order_response);
+            // match exchange_client.create_order(order).await {
+            //     Ok(order) => {
+            //         debug!("Successfully created order: {:?}", order);
+            //         // submit this order to the "order_confirm" queue using the producer
+            //         order_confirm_producer.publish(order).await?;
+            //     },
+            //     Err(e) => debug!("Failed to create order with error: {:?}", e)
+            // }
         }
 
-        for cancel in cancels {
-            debug!("Sending cancel: {:?}", cancel);
-        }
+        // for cancel in cancels {
+        //     debug!("Sending cancel: {:?}", cancel);
+        // }
 
         // Make a dummy order
-        let fake_order = Order {
-            order_id: "O123456".to_string(),
-            user_id: Some("U123".to_string()),
-            ticker: "AAPL".to_string(),
-            status: OrderStatus::Resting,
-            yes_price: 100,
-            no_price: 50,
-            created_time: Some("2023-03-15T12:00:00Z".to_string()),
-            taker_fill_count: Some(3),
-            taker_fill_cost: Some(150),
-            place_count: Some(1),
-            decrease_count: None,
-            maker_fill_count: Some(2),
-            fcc_cancel_count: None,
-            close_cancel_count: None,
-            remaining_count: Some(10),
-            queue_position: Some(5),
-            expiration_time: Some("2023-03-20T12:00:00Z".to_string()),
-            taker_fees: Some(5),
-            action: Action::Buy,
-            side: Side::Yes,
-            r#type: "Limit".to_string(),
-            last_update_time: Some("2023-03-15T12:05:00Z".to_string()),
-            client_order_id: "C123456".to_string(),
-            order_group_id: "G123".to_string(),
-        };
+        // let fake_order = Order {
+        //     order_id: "O123456".to_string(),
+        //     user_id: Some("U123".to_string()),
+        //     ticker: "AAPL".to_string(),
+        //     status: OrderStatus::Resting,
+        //     yes_price: 100,
+        //     no_price: 50,
+        //     created_time: Some("2023-03-15T12:00:00Z".to_string()),
+        //     taker_fill_count: Some(3),
+        //     taker_fill_cost: Some(150),
+        //     place_count: Some(1),
+        //     decrease_count: None,
+        //     maker_fill_count: Some(2),
+        //     fcc_cancel_count: None,
+        //     close_cancel_count: None,
+        //     remaining_count: Some(10),
+        //     queue_position: Some(5),
+        //     expiration_time: Some("2023-03-20T12:00:00Z".to_string()),
+        //     taker_fees: Some(5),
+        //     action: Action::Buy,
+        //     side: Side::Yes,
+        //     r#type: "Limit".to_string(),
+        //     last_update_time: Some("2023-03-15T12:05:00Z".to_string()),
+        //     client_order_id: "C123456".to_string(),
+        //     order_group_id: "G123".to_string(),
+        // };
 
         // submit this dummy order to the "orders" queue using the producer
-        debug!("Sending fake order: {:?}", fake_order);
-        mq_producer.publish(fake_order).await?;
+        // debug!("Sending fake order: {:?}", fake_order);
+        // mq_producer.publish(fake_order).await?;
 
         // check if the order was successfully placed in the queue
-        match mq_consumer.get_next().await? {
-            Some(order) => debug!("Successfully pulled order from the queue: {:?}", order),
-            None => debug!("Failed to pull order from the queue")
-        }
+        // match mq_consumer.get_next().await? {
+        //     Some(order) => debug!("Successfully pulled order from the queue: {:?}", order),
+        //     None => debug!("Failed to pull order from the queue")
+        // }
 
         // 3. Relay fills from the websocket client to the message queue wrapper
 
@@ -159,7 +181,7 @@ async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStr
             OwnedMessage::Text(s) => {
                 debug!("Handling incoming text");
                 debug!("{s}");
-                handle_websocket_text(s)?
+                handle_websocket_text(s, fill_producer).await?;
             },
             OwnedMessage::Binary(_b) => debug!("Received and ignored binary data."),
             OwnedMessage::Close(close_data) => {
@@ -178,10 +200,10 @@ async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStr
 
 // Handle websocket text messages
 // fn handle_websocket_text(text: String, mq_wrapper: &mut MessageQueueWrapper) -> Result<(), anyhow::Error> {
-fn handle_websocket_text(text: String) -> Result<(), anyhow::Error> {
+async fn handle_websocket_text(text: String, producer: Producer<FillMessage>) -> Result<(), anyhow::Error> {
     
     let wrapper_msg = match serde_json::from_str::<FillMessage>(&text) {
-        Ok(msg) => msg,
+        Ok(msg) => producer.publish(msg).await?,
         Err(_e) => {
             debug!("Ignoring non-FillMessage text data.");
             return Ok(())

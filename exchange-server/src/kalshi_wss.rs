@@ -3,8 +3,13 @@ use serde_json;
 use serde::{Deserialize, Serialize};
 use websocket::Message;
 use anyhow::anyhow;
+use bincode::{serialize, deserialize};
 
 use std::ops;
+
+use queue_client::queue_data::QueueData;
+use queue_client::queue_data::QueueClass;
+use anyhow::Result;
 
 /// Represents a message to send to the Kalshi websocket server.
 #[derive(Serialize, Deserialize)]
@@ -136,4 +141,18 @@ pub enum Side {
 pub enum Action {
     BUY,
     SELL
+}
+
+impl QueueData for FillMessage {
+    fn class() -> QueueClass {
+        QueueClass::FILL
+    }
+
+    fn serialize(&self) -> Result<Vec<u8>> {
+        Ok(serialize(&self)?)
+    }
+
+    fn deserialize(bytes: &[u8]) -> Result<Self> {
+        Ok(deserialize::<FillMessage>(bytes)?)
+    }
 }
