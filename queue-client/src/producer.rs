@@ -19,7 +19,7 @@ impl<T: QueueData> Producer<T> {
     // Create a new producer
     pub async fn new(channel: Channel) -> Result<Self> {
         //let queue_name = T::class().to_string();
-        let queue_name = "orders".to_string();
+        let queue_name = T::class().to_string();
         // Declare the exchange
         channel
             .queue_declare(&queue_name, QueueDeclareOptions::default(), FieldTable::default())
@@ -35,6 +35,7 @@ impl<T: QueueData> Producer<T> {
     // Publish a single element to the queue
     pub async fn publish(&self, message: T) -> Result<()> {
         let serialized_data = message.serialize()?;
+        print!("{:?}", serialized_data);
         self.channel.basic_publish(
             "",
             &self.queue_name,
