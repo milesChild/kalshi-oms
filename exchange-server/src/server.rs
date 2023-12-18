@@ -111,8 +111,8 @@ async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStr
             // for each order, unpack the CreateOrderMessage and call the exchange client's create_order method
             debug!("Sending order: {:?}", order);
             let order_response: Order = exchange_client.create_order(order.action,
-                order.client_order_id,
-                order.place_count,
+                Some(order.client_order_id),
+                order.place_count.unwrap(),
                 order.side,
                 order.ticker,
                 OrderType::Limit,
@@ -120,7 +120,7 @@ async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStr
                 None,
                 None,
                 None,
-                order.yes_price,
+                Some(order.yes_price.into()),
             ).await?;
             debug!("Order Response: {:?}", order_response);
             // match exchange_client.create_order(order).await {
@@ -181,7 +181,7 @@ async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStr
             OwnedMessage::Text(s) => {
                 debug!("Handling incoming text");
                 debug!("{s}");
-                handle_websocket_text(s, fill_producer).await?;
+                handle_websocket_text(s, &fill_producer).await?;
             },
             OwnedMessage::Binary(_b) => debug!("Received and ignored binary data."),
             OwnedMessage::Close(close_data) => {
@@ -200,7 +200,7 @@ async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStr
 
 // Handle websocket text messages
 // fn handle_websocket_text(text: String, mq_wrapper: &mut MessageQueueWrapper) -> Result<(), anyhow::Error> {
-async fn handle_websocket_text(text: String, producer: Producer<FillMessage>) -> Result<(), anyhow::Error> {
+async fn handle_websocket_text(text: String, producer: &Producer<FillMessage>) -> Result<(), anyhow::Error> {
     
     let wrapper_msg = match serde_json::from_str::<FillMessage>(&text) {
         Ok(msg) => producer.publish(msg).await?,
