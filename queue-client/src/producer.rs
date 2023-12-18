@@ -9,7 +9,7 @@ use anyhow::Result;
 use crate::queue_data::QueueData;
 
 // Your struct representing the producer
-struct Producer<T: QueueData> {
+pub struct Producer<T: QueueData> {
     channel: Channel,
     queue_name: String,
     phantom_data: PhantomData<T>
@@ -17,8 +17,9 @@ struct Producer<T: QueueData> {
 
 impl<T: QueueData> Producer<T> {
     // Create a new producer
-    async fn new(channel: Channel) -> Result<Self> {
-        let queue_name = T::class().to_string();
+    pub async fn new(channel: Channel) -> Result<Self> {
+        //let queue_name = T::class().to_string();
+        let queue_name = "orders".to_string();
         // Declare the exchange
         channel
             .queue_declare(&queue_name, QueueDeclareOptions::default(), FieldTable::default())
@@ -32,7 +33,7 @@ impl<T: QueueData> Producer<T> {
     }
 
     // Publish a single element to the queue
-    async fn publish(&self, message: T) -> Result<()> {
+    pub async fn publish(&self, message: T) -> Result<()> {
         let serialized_data = message.serialize()?;
         self.channel.basic_publish(
             "",
@@ -45,7 +46,7 @@ impl<T: QueueData> Producer<T> {
     }
 
     // Publish a vector of elements to the queue
-    async fn publish_batch(&self, messages: Vec<T>) -> Result<()> {
+    pub async fn publish_batch(&self, messages: Vec<T>) -> Result<()> {
         for message in messages {
             self.publish(message).await?;
         }

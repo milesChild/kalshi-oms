@@ -15,6 +15,7 @@ use lapin::{
     BasicProperties, Channel, Connection, ConnectionProperties,
 };
 use queue_client::consumer::Consumer;
+use queue_client::producer::Producer;
 use queue_client::queue_data::QueueClass;
 
 use crate::kalshi_wss::SubscribeSubMessage;
@@ -26,6 +27,11 @@ use crate::exchange_client_utils::CancelOrderMessage;
 
 use kalshi::Kalshi;
 use kalshi::Order;
+
+// FOR TESTING ONLY
+use kalshi::OrderStatus;
+use kalshi::Action;
+use kalshi::Side;
 
 mod constants;
 mod kalshi_wss;
@@ -46,7 +52,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut exchange_client = Kalshi::new(kalshi::TradingEnvironment::LiveMarketMode);
 
-    exchange_client.login(username, password).await.expect("Could not login to Kalshi.");
+    exchange_client.login(&username, &password).await.expect("Could not login to Kalshi.");
 
     info!("Successful instantiation of kalshi exchange client");
 
@@ -79,15 +85,16 @@ async fn main() -> Result<(), anyhow::Error> {
     let producer_channel = connection.create_channel().await?;
     let consumer_channel = connection.create_channel().await?;
 
-    let sample_consumer = Consumer::<kalshi::Order>::new(consumer_channel).await?;
+    let mq_consumer = Consumer::<kalshi::Order>::new(consumer_channel).await?;
+    let mq_producer = Producer::<kalshi::Order>::new(producer_channel).await?;
 
     // 4. Loop
         
-    run_loop(exchange_client, wss_client)
+    run_loop(exchange_client, wss_client, mq_consumer, mq_producer)
 
 }
 
-fn run_loop(mut exchange_client: Kalshi, mut wss_client: Client<TlsStream<TcpStream>>) -> Result<(), anyhow::Error> {
+fn run_loop(mut exchange_client: Kalshi, mut wss_client: Client<TlsStream<TcpStream>>, mut mq_consumer: Consumer<Order>, mut mq_producer: Producer<Order>) -> Result<(), anyhow::Error> {
 
     loop {
         // 1. Empty the orders & cancels queue
@@ -100,27 +107,43 @@ fn run_loop(mut exchange_client: Kalshi, mut wss_client: Client<TlsStream<TcpStr
         for order in orders {
             // for each order, unpack the CreateOrderMessage and call the exchange client's create_order method
             debug!("Sending order: {:?}", order);
-            let order: Order = exchange_client.create_order(
-                order.action,
-                order.client_order_id,
-                order.count,
-                order.side,
-                order.ticker,
-                order.input_type,
-                order.buy_max_cost,
-                order.expiration_ts,
-                order.no_price,
-                order.sell_position_floor,
-                order.yes_price,
-            )
-            .unwrap();
         }
 
         for cancel in cancels {
             debug!("Sending cancel: {:?}", cancel);
-            let order: Order = exchange_client.cancel_order(cancel.order_id).unwrap();
-            info!("Cancelled order: {:?}", order);
         }
+
+        // Make a dummy order
+        let fake_order = Order {
+            order_id: "O123456".to_string(),
+            user_id: Some("U123".to_string()),
+            ticker: "AAPL".to_string(),
+            status: OrderStatus::Resting,
+            yes_price: 100,
+            no_price: 50,
+            created_time: Some("2023-03-15T12:00:00Z".to_string()),
+            taker_fill_count: Some(3),
+            taker_fill_cost: Some(150),
+            place_count: Some(1),
+            decrease_count: None,
+            maker_fill_count: Some(2),
+            fcc_cancel_count: None,
+            close_cancel_count: None,
+            remaining_count: Some(10),
+            queue_position: Some(5),
+            expiration_time: Some("2023-03-20T12:00:00Z".to_string()),
+            taker_fees: Some(5),
+            action: Action::Buy,
+            side: Side::Yes,
+            r#type: "Limit".to_string(),
+            last_update_time: Some("2023-03-15T12:05:00Z".to_string()),
+            client_order_id: "C123456".to_string(),
+            order_group_id: "G123".to_string(),
+        };
+
+        // submit this dummy order to the "orders" queue using the producer
+        debug!("Sending fake order: {:?}", fake_order);
+        mq_producer.publish(fake_order);
 
         // 3. Relay fills from the websocket client to the message queue wrapper
 
