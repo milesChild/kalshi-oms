@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::queue_data::{QueueData, QueueClass};
+use crate::queue_data::data_core::{QueueData, QueueClass};
 use crate::queue_data::data_core::{Action, Side, OrderType};
 
 #[derive(Serialize, Deserialize, Debug)]

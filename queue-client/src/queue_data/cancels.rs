@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::queue_data::{QueueData, QueueClass};
+use crate::queue_data::data_core::{QueueData, QueueClass};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CancelOrderMessage {

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::queue_data::{QueueClass, QueueData};
+use crate::queue_data::data_core::{QueueClass, QueueData};
 use crate::queue_data::data_core::{Action, Side};
 
 
