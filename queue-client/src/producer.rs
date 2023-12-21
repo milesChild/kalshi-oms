@@ -6,18 +6,18 @@ use lapin::{
 };
 use anyhow::Result;
 
-use crate::queue_data::QueueData;
+use crate::queue_data::data_core::QueueData;
 
 // Your struct representing the producer
-pub struct Producer<'a, T: QueueData> {
-    channel: &'a Channel,
+pub struct Producer<T: QueueData> {
+    channel: Channel,
     queue_name: String,
     phantom_data: PhantomData<T>
 }
 
-impl<'a, T: QueueData> Producer<'a, T> {
+impl<T: QueueData> Producer<T> {
     // Create a new producer
-    pub async fn new(channel: &'a Channel) -> Result<Self> {
+    pub async fn new(channel: Channel) -> Result<Self> {
         let queue_name = T::class().to_string();
         // Declare the exchange
         channel

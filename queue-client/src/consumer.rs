@@ -6,17 +6,17 @@ use lapin::{
 };
 use anyhow::Result;
 
-use crate::queue_data::QueueData;
+use crate::queue_data::data_core::QueueData;
 
-pub struct Consumer<'a, T: QueueData> {
-    channel: &'a Channel,
+pub struct Consumer<T: QueueData> {
+    channel: Channel,
     queue_name: String,
     phantom_data: PhantomData<T>,
 }
 
-impl<'a, T: QueueData> Consumer<'a, T> {
+impl<T: QueueData> Consumer<T> {
 
-    pub async fn new(channel: &'a Channel) -> Result<Self> {
+    pub async fn new(channel: Channel) -> Result<Self> {
         let queue_name = T::class().to_string();
         // Declare the queue
         channel
