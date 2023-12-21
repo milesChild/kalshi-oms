@@ -9,15 +9,15 @@ use anyhow::Result;
 use crate::queue_data::QueueData;
 
 // Your struct representing the producer
-pub struct Producer<T: QueueData> {
-    channel: Channel,
+pub struct Producer<'a, T: QueueData> {
+    channel: &'a Channel,
     queue_name: String,
     phantom_data: PhantomData<T>
 }
 
-impl<T: QueueData> Producer<T> {
+impl<'a, T: QueueData> Producer<'a, T> {
     // Create a new producer
-    pub async fn new(channel: Channel) -> Result<Self> {
+    pub async fn new(channel: &'a Channel) -> Result<Self> {
         let queue_name = T::class().to_string();
         // Declare the exchange
         channel
@@ -33,7 +33,7 @@ impl<T: QueueData> Producer<T> {
 
     // Publish a single element to the queue
     pub async fn publish(&self, message: T) -> Result<()> {
-        let serialized_data = message.serialize()?;
+        let serialized_data = message.to_bytes()?;
         print!("{:?}", serialized_data);
         self.channel.basic_publish(
             "",

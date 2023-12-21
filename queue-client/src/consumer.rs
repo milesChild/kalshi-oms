@@ -8,15 +8,15 @@ use anyhow::Result;
 
 use crate::queue_data::QueueData;
 
-pub struct Consumer<T: QueueData> {
-    channel: Channel,
+pub struct Consumer<'a, T: QueueData> {
+    channel: &'a Channel,
     queue_name: String,
     phantom_data: PhantomData<T>,
 }
 
-impl<T: QueueData> Consumer<T> {
+impl<'a, T: QueueData> Consumer<'a, T> {
 
-    pub async fn new(channel: Channel) -> Result<Self> {
+    pub async fn new(channel: &'a Channel) -> Result<Self> {
         let queue_name = T::class().to_string();
         // Declare the queue
         channel
@@ -29,7 +29,7 @@ impl<T: QueueData> Consumer<T> {
     pub async fn get_next(&self) -> Result<Option<T>> {
         let delivery = self.channel.basic_get(&self.queue_name, BasicGetOptions::default()).await?;
         if let Some(delivery) = delivery {
-            Ok(Some(T::deserialize(delivery.data.as_slice())?))
+            Ok(Some(T::from_bytes(&delivery.data)?))
         } else {
             Ok(None)
         }

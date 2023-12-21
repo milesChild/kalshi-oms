@@ -4,6 +4,7 @@ use crate::kalshi_wss::Action;
 use crate::kalshi_wss::Side;
 
 use kalshi::OrderType;
+use kalshi::Order;
 
 extern crate kalshi;
 

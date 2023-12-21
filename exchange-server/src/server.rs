@@ -8,7 +8,7 @@ use websocket::header::{Headers, Authorization, Bearer};
 use std::net::TcpStream;
 use std::env;
 use log::{debug, info, trace};
-use anyhow::anyhow;
+use anyhow::Result;
 use lapin::{
     options::*,
     types::{FieldTable, AMQPValue},
@@ -16,11 +16,10 @@ use lapin::{
 };
 use queue_client::consumer::Consumer;
 use queue_client::producer::Producer;
-use queue_client::queue_data::QueueClass;
+use queue_client::queue_data::{QueueClass, FillMessage};
 
 use crate::kalshi_wss::SubscribeSubMessage;
 use crate::kalshi_wss::KalshiClientSubMessage as SubMessage;
-use crate::kalshi_wss::FillMessage;
 
 use crate::exchange_client_utils::CreateOrderMessage;
 use crate::exchange_client_utils::CancelOrderMessage;
@@ -41,7 +40,7 @@ mod exchange_client_utils;
 extern crate kalshi;
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> Result<()> {
     
     // Initialize logger
 
@@ -97,7 +96,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
 }
 
-async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStream<TcpStream>>, mut order_consumer: Consumer<Order>, mut fill_producer: Producer<FillMessage>) -> Result<(), anyhow::Error> {
+async fn run_loop(mut exchange_client: Kalshi<'_>, mut wss_client: Client<TlsStream<TcpStream>>, mut order_consumer: Consumer<Order>, mut fill_producer: Producer<FillMessage>) -> Result<()> {
 
     loop {
         // 1. Empty the orders & cancels queue
