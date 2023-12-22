@@ -1,15 +1,6 @@
-use log::debug;
 use serde_json;
 use serde::{Deserialize, Serialize};
 use websocket::Message;
-use anyhow::anyhow;
-use bincode::{serialize, deserialize};
-
-use std::ops;
-
-use queue_client::queue_data::QueueData;
-use queue_client::queue_data::QueueClass;
-use anyhow::Result;
 
 /// Represents a message to send to the Kalshi websocket server.
 #[derive(Serialize, Deserialize)]

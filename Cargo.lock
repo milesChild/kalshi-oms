@@ -1212,7 +1212,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "kalshi-exchange-client"
+name = "kalshi-exchange-server-1"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "clap",
+ "env_logger",
+ "kalshi",
+ "lapin",
+ "log 0.4.20",
+ "native-tls",
+ "queue-client",
+ "redis-derive",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "url 2.5.0",
+ "websocket",
+]
+
+[[package]]
+name = "kalshi-exchange-server-2"
 version = "0.1.0"
 dependencies = [
  "anyhow",
