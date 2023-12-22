@@ -110,15 +110,20 @@ async fn run_loop(mut ws_client: Client<TlsStream<TcpStream>>, fill_producer: Pr
 // Handle websocket text messages
 async fn handle_websocket_text(text: String, producer: &Producer<FillMessage>) -> Result<(), anyhow::Error> {
     
-    let _ = match serde_json::from_str::<FillMessage>(&text) {
-        Ok(msg) => producer.publish(msg).await?,
+    let ws_message = match serde_json::from_str::<FillMessage>(&text) {
+        Ok(msg) => msg,
         Err(_e) => {
             debug!("Ignoring non-FillMessage text data.");
             return Ok(())
         }
     };
-    Ok(())
 
-    // add match producer.publish(msg).await? with an error here
+    match producer.publish(ws_message).await {
+        Ok(()) => {
+            trace!("Successfully published message to queue");
+            Ok(())
+        },
+        Err(e) => panic!("Failed to publish message to queue with error {e:?}")
+    }
 
 }
