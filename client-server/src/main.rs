@@ -90,3 +90,27 @@ async fn handle_client(
 
     Ok(())
 }
+
+async fn wait_for_cancel_confirms(
+    clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>,
+    cancel_confirm_handle: Arc<Mutex<Consumer<CancelConfirmMessage>>>
+) -> Result<()> {
+
+    todo!()
+}
+
+async fn wait_for_order_confirms(
+    clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>,
+    order_confirm_handle: Arc<Mutex<Consumer<OrderConfirmMessage>>>
+) -> Result<()> {
+
+    todo!()
+}
+
+async fn wait_for_fills(
+    clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>,
+    fill_handle: Arc<Mutex<Consumer<FillMessage>>>
+) -> Result<()> {
+
+    todo!()
+}
