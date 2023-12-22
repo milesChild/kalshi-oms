@@ -8,11 +8,7 @@ use websocket::header::{Headers, Authorization};
 use std::net::TcpStream;
 use log::{debug, info, trace};
 use anyhow::Result;
-use lapin::{
-    options::*,
-    types::{FieldTable, AMQPValue},
-    BasicProperties, Channel, Connection, ConnectionProperties,
-};
+use lapin::{Connection, ConnectionProperties};
 use queue_client::producer::Producer;
 use queue_client::queue_data::fills::FillMessage;
 

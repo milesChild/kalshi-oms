@@ -82,5 +82,4 @@ async fn run_loop(exchange_client: Kalshi<'_>, order_consumer: Consumer<CreateOr
 
     }
 
-    Ok(())
 }
