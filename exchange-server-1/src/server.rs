@@ -1,35 +1,16 @@
 #[allow(unused_imports)]
 
 extern crate websocket;
-use native_tls::TlsStream;
-use std::net::TcpStream;
-use std::env;
-use log::{debug, info, trace};
+use log::{debug, info};
 use anyhow::Result;
-use lapin::{
-    options::*,
-    types::{FieldTable, AMQPValue},
-    BasicProperties, Channel, Connection, ConnectionProperties,
-};
-use queue_client::consumer::Consumer;
+use lapin::{Connection, ConnectionProperties};
+use queue_client::{consumer::Consumer, queue_data::orders::OrderConfirmMessage, queue_data::orders::CreateOrderMessage};
 use queue_client::producer::Producer;
-use queue_client::queue_data::{QueueClass, FillMessage};
-
-use crate::exchange_client_utils::CreateOrderMessage;
-use crate::exchange_client_utils::CancelOrderMessage;
 
 use kalshi::Kalshi;
 use kalshi::Order;
-use kalshi::OrderType;
-
-// FOR TESTING ONLY
-use kalshi::OrderStatus;
-use kalshi::Action;
-use kalshi::Side;
 
 mod constants;
-mod kalshi_wss;
-mod exchange_client_utils;
 
 extern crate kalshi;
 
@@ -57,53 +38,47 @@ async fn main() -> Result<()> {
     let consumer_channel = connection.create_channel().await?;
 
     let order_consumer = Consumer::<CreateOrderMessage>::new(consumer_channel).await?;
-    //let order_producer = Producer::<kalshi::Order>::new(producer_channel).await?;
+    let order_confirm_producer = Producer::<OrderConfirmMessage>::new(producer_channel).await?;
 
     // 4. Loop
         
-    run_loop(exchange_client, order_consumer).await?;
+    run_loop(exchange_client, order_consumer, order_confirm_producer).await?;
 
     Ok(())
 
 }
 
-async fn run_loop(mut exchange_client: Kalshi<'_>, mut order_consumer: Consumer<CreateOrderMessage>) -> Result<()> {
+async fn run_loop(exchange_client: Kalshi<'_>, order_consumer: Consumer<CreateOrderMessage>, order_confirm_producer: Producer<OrderConfirmMessage>) -> Result<()> {
 
     loop {
         // 1. Empty the orders & cancels queue
 
-        let orders: Vec<Order> = order_consumer.get_all().await?;
+        let orders: Vec<CreateOrderMessage> = order_consumer.get_all().await?;
 
-        // 2. Pass orders and cancels to the exchange client
+        // 2. Send orders to exchange
 
-        for order in orders {
+        for order_create in orders {
             // for each order, unpack the CreateOrderMessage and call the exchange client's create_order method
-            debug!("Sending order: {:?}", order);
-            let order_response: Order = exchange_client.create_order(order.action,
-                Some(order.client_order_id),
-                order.place_count.unwrap(),
-                order.side,
-                order.ticker,
-                OrderType::Limit,
-                None,
-                None,
-                None,
-                None,
-                Some(order.yes_price.into()),
+            info!("Relating Order from MQ to Exchange: {:?}", order_create);
+            let order_response: Order = exchange_client.create_order(
+                order_create.action,
+                Some(order_create.client_order_id),
+                order_create.count,
+                order_create.side,
+                order_create.ticker,
+                order_create.input_type,
+                order_create.buy_max_cost,
+                order_create.expiration_ts,
+                order_create.no_price,
+                order_create.sell_position_floor,
+                order_create.yes_price,
             ).await?;
-            debug!("Order Response: {:?}", order_response);
-            
+            debug!("Exchange Order Response: {:?}", order_response);
+            // send the order confirmation to the "order_confirm" queue using the producer
+            let order_confirm = OrderConfirmMessage::new(order_response.order_id, Some(order_response.client_order_id));
+            debug!("Sending order confirmation: {:?}", order_confirm);
+            order_confirm_producer.publish(order_confirm).await?;
         }
-
-        // submit this dummy order to the "orders" queue using the producer
-        // debug!("Sending fake order: {:?}", fake_order);
-        // mq_producer.publish(fake_order).await?;
-
-        // check if the order was successfully placed in the queue
-        // match mq_consumer.get_next().await? {
-        //     Some(order) => debug!("Successfully pulled order from the queue: {:?}", order),
-        //     None => debug!("Failed to pull order from the queue")
-        // }
 
     }
 
