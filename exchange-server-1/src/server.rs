@@ -53,8 +53,15 @@ async fn run_loop(exchange_client: Kalshi<'_>, order_consumer: Consumer<CreateOr
     loop {
         // 1. Empty the orders & cancels queue
 
-        let orders: Vec<CreateOrderMessage> = order_consumer.get_all().await?;
-
+        //let orders: Vec<CreateOrderMessage> = order_consumer.get_all().await?;
+        let orders = match order_consumer.get_all().await {
+            Ok(orders) => orders,
+            Err(e) => {
+                info!("Error getting orders from queue: {:?}", e);
+                Vec::new()
+            }
+        };
+        
         // 2. Send orders to exchange
 
         for order_create in orders {
