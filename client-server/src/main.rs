@@ -6,6 +6,7 @@ use lapin::{
 };
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
+use tokio::io::AsyncReadExt;
 use std::sync::{Arc, Mutex as BlockingMutex};
 use std::collections::HashMap;
 
@@ -38,7 +39,7 @@ async fn main() -> Result<()> {
     let order_confirm_consumer_handle = Arc::new(Mutex::new(Consumer::<OrderConfirmMessage>::new(order_confirm_channel).await?));
     let cancel_confirm_consumer_handle = Arc::new(Mutex::new(Consumer::<CancelConfirmMessage>::new(cancel_confirm_channel).await?));
 
-    let client_map_handle = Arc::new(BlockingMutex::new(HashMap::<String, TcpStream>::new()));
+    let client_map_handle = Arc::new(BlockingMutex::new(HashMap::<String, Arc<Mutex<TcpStream>>>::new()));
 
     let listener = TcpListener::bind("127.0.0.1:8080").await.expect("Failed to bind");
     tokio::spawn(handle_incoming_connections(
@@ -55,14 +56,37 @@ async fn main() -> Result<()> {
 
 async fn handle_incoming_connections(
     listener: TcpListener, 
-    clients: Arc<BlockingMutex<HashMap<String, TcpStream>>>, 
+    clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>, 
     order_handle: Arc<Mutex<Producer<CreateOrderMessage>>>,
     cancel_handle: Arc<Mutex<Producer<CancelOrderMessage>>>
 ) -> Result<()> {
+    loop {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut name_buffer: [u8; 10] = [0; 10];
+        let name_length = socket.read(&mut name_buffer).await?;
+        
+        if let Ok(name_str) = core::str::from_utf8(&name_buffer[..name_length]) {
+            let socket_handle = Arc::new(Mutex::new(socket));
+            let name = name_str.to_string();
 
-    // while loop to accept clients
-        // when accepted, unlock client map and add them
-        // then spawn a task with another function that solely listens to the client and queues up orders and cancels
+            { // block off client interaction so the map exits scope and is freed sooner
+                let mut clients = clients.lock().unwrap();
+                clients.insert(name.clone(), socket_handle.clone());
+            }
+            
+            let order_handle = order_handle.clone();
+            let cancel_handle = cancel_handle.clone();
+            tokio::spawn(handle_client(socket_handle.clone(), name.clone(), order_handle, cancel_handle));
+        }
+    }
+}
+
+async fn handle_client(
+    socket_handle: Arc<Mutex<TcpStream>>,
+    name: String,
+    order_handle: Arc<Mutex<Producer<CreateOrderMessage>>>,
+    cancel_handle: Arc<Mutex<Producer<CancelOrderMessage>>>
+) -> Result<()> {
 
     Ok(())
 }
