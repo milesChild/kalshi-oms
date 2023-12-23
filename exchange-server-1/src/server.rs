@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 
 extern crate websocket;
-use log::{debug, info};
+use log::{debug, info, error};
 use anyhow::Result;
 use lapin::{Connection, ConnectionProperties};
 use queue_client::{consumer::Consumer, queue_data::orders::OrderConfirmMessage, queue_data::orders::CreateOrderMessage};
@@ -51,42 +51,42 @@ async fn main() -> Result<()> {
 async fn run_loop(exchange_client: Kalshi<'_>, order_consumer: Consumer<CreateOrderMessage>, order_confirm_producer: Producer<OrderConfirmMessage>) -> Result<()> {
 
     loop {
-        // 1. Empty the orders & cancels queue
-
-        //let orders: Vec<CreateOrderMessage> = order_consumer.get_all().await?;
-        let orders = match order_consumer.get_all().await {
-            Ok(orders) => orders,
-            Err(e) => {
-                info!("Error getting orders from queue: {:?}", e);
-                Vec::new()
-            }
-        };
         
-        // 2. Send orders to exchange
+        // get all orders in the queue
+        match order_consumer.get_all().await {
 
-        for order_create in orders {
-            // for each order, unpack the CreateOrderMessage and call the exchange client's create_order method
-            info!("Relaying Order from MQ to Exchange: {:?}", order_create);
-            let order_response: Order = exchange_client.create_order(
-                order_create.action,
-                Some(order_create.client_order_id),
-                order_create.count,
-                order_create.side,
-                order_create.ticker,
-                order_create.input_type,
-                order_create.buy_max_cost,
-                order_create.expiration_ts,
-                order_create.no_price,
-                order_create.sell_position_floor,
-                order_create.yes_price,
-            ).await?;
-            debug!("Exchange Order Response: {:?}", order_response);
-            // send the order confirmation to the "order_confirm" queue using the producer
-            let order_confirm = OrderConfirmMessage::new(order_response.order_id, Some(order_response.client_order_id));
-            debug!("Sending order confirmation: {:?}", order_confirm);
-            order_confirm_producer.publish(order_confirm).await?;
+            Ok(orders) => {
+                
+                // iteratively place each order & relay response to MQ
+                for order in orders {
+                    info!("Relaying Order from MQ to Exchange: {:?}", order);
+
+                    match exchange_client.create_order(
+                        order.action,
+                        Some(order.client_order_id),
+                        order.count,
+                        order.side,
+                        order.ticker,
+                        order.input_type,
+                        order.buy_max_cost,
+                        order.expiration_ts,
+                        order.no_price,
+                        order.sell_position_floor,
+                        order.yes_price,
+                    ).await {
+                        Ok(order_response) => {
+                            debug!("Exchange Order Response: {:?}", order_response);
+                            // send the order confirmation to the "order_confirm" queue using the producer
+                            let order_confirm = OrderConfirmMessage::new(order_response.order_id, Some(order_response.client_order_id));
+                            debug!("Relaying Order Confirmation to MQ: {:?}", order_confirm);
+                            order_confirm_producer.publish(order_confirm).await?;
+                        },
+                        Err(e) => error!("Error placing order: {:?}", e)
+                    }
+                }
+            },
+            Err(e) => error!("Error getting orders from queue: {:?}", e)
         }
-
     }
 
 }
