@@ -66,7 +66,7 @@ async fn run_loop(exchange_client: Kalshi<'_>, order_consumer: Consumer<CreateOr
 
         for order_create in orders {
             // for each order, unpack the CreateOrderMessage and call the exchange client's create_order method
-            info!("Relating Order from MQ to Exchange: {:?}", order_create);
+            info!("Relaying Order from MQ to Exchange: {:?}", order_create);
             let order_response: Order = exchange_client.create_order(
                 order_create.action,
                 Some(order_create.client_order_id),
