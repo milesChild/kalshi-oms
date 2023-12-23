@@ -3,6 +3,7 @@ use anyhow::Result;
 use queue_client::producer::Producer;
 use queue_client::queue_data::orders::CreateOrderMessage;
 use kalshi::{Action, Side, OrderType};
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -13,9 +14,12 @@ async fn main() -> Result<()> {
 
     let producer = Producer::<CreateOrderMessage>::new(channel).await?;
 
+    let mock_uuid = Uuid::new_v4();
+    let clorid = format!("miles69-{}", mock_uuid);
+
     let mock_create_order = CreateOrderMessage {
         action: Action::Buy,
-        client_order_id: "miles69".to_string(),
+        client_order_id: clorid,
         count: 1,
         side: Side::Yes,
         ticker: "INXD-23DEC29-B4762".to_string(),

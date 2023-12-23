@@ -8,7 +8,6 @@ use queue_client::{consumer::Consumer, queue_data::orders::OrderConfirmMessage, 
 use queue_client::producer::Producer;
 
 use kalshi::Kalshi;
-use kalshi::Order;
 
 mod constants;
 
@@ -48,9 +47,10 @@ async fn main() -> Result<()> {
 
 }
 
-async fn run_loop(exchange_client: Kalshi<'_>, order_consumer: Consumer<CreateOrderMessage>, order_confirm_producer: Producer<OrderConfirmMessage>) -> Result<()> {
+async fn run_loop(exchange_client: Kalshi, order_consumer: Consumer<CreateOrderMessage>, order_confirm_producer: Producer<OrderConfirmMessage>) -> Result<()> {
 
     loop {
+
         
         // get all orders in the queue
         match order_consumer.get_all().await {
