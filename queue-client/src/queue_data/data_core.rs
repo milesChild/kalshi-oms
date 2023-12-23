@@ -36,23 +36,3 @@ pub trait QueueData: Serialize + DeserializeOwned {
         Ok(deserialize::<Self>(bytes)?)
     }
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum Side {
-    Yes, 
-    No
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum Action {
-    Yes, 
-    No
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum OrderType {
-    Market, 
-    Limit
-}
