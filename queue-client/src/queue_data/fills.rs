@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::queue_data::data_core::{QueueClass, QueueData};
-use crate::queue_data::data_core::{Action, Side};
+
+use kalshi::{Action, Side};
 
 
 /// A kalshi market data message
