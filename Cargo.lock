@@ -1212,7 +1212,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "kalshi-exchange-client"
+name = "kalshi-exchange-server-1"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "clap",
+ "env_logger",
+ "kalshi",
+ "lapin",
+ "log 0.4.20",
+ "native-tls",
+ "queue-client",
+ "redis-derive",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "url 2.5.0",
+ "websocket",
+]
+
+[[package]]
+name = "kalshi-exchange-server-2"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1735,6 +1757,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "kalshi",
  "lapin",
  "serde",
 ]
@@ -2438,6 +2461,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff1bc3d3f05aff0403e8ac0d92ced918ec05b666a43f83297ccef5bea8a3d449"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "test-producer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures 0.3.29",
+ "kalshi",
+ "lapin",
+ "queue-client",
+ "tokio",
 ]
 
 [[package]]

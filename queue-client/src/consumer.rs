@@ -29,7 +29,9 @@ impl<T: QueueData> Consumer<T> {
     pub async fn get_next(&self) -> Result<Option<T>> {
         let delivery = self.channel.basic_get(&self.queue_name, BasicGetOptions::default()).await?;
         if let Some(delivery) = delivery {
-            Ok(Some(T::from_bytes(&delivery.data)?))
+            let message = T::from_bytes(&delivery.data)?;
+            self.channel.basic_ack(delivery.delivery_tag, BasicAckOptions::default()).await?;
+            Ok(Some(message))
         } else {
             Ok(None)
         }
