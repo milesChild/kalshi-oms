@@ -26,8 +26,8 @@ impl QueueData for CreateOrderMessage {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OrderConfirmMessage {
-    order_id: String,
-    client_order_id: Option<String>
+    pub order_id: String,
+    pub client_order_id: Option<String>
 }
 
 impl QueueData for OrderConfirmMessage {
