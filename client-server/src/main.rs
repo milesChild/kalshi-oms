@@ -1,9 +1,5 @@
 use anyhow::Result;
-use lapin::{
-    options::*,
-    types::{FieldTable, AMQPValue},
-    BasicProperties, Channel, Connection, ConnectionProperties,
-};
+use lapin::{Connection, ConnectionProperties};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use tokio::io::AsyncReadExt;
@@ -19,6 +15,9 @@ use queue_client::queue_data::{
     orders::OrderConfirmMessage, 
     fills::FillMessage
 };
+use tracing::{debug, error, info, warn};
+
+mod constants;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -27,17 +26,16 @@ async fn main() -> Result<()> {
     let connection = Connection::connect(addr, ConnectionProperties::default()).await?;
 
     let order_channel = connection.create_channel().await?;
-    let order_confirm_channel = connection.create_channel().await?;
     let cancel_channel = connection.create_channel().await?;
-    let cancel_confirm_channel = connection.create_channel().await?;
-    let fill_channel = connection.create_channel().await?;
+    
+    // problem: how to give the consumer tasks their channels or connections
+    // options:
+    // 1: construct the consumers here and pass them (more arguments than ideal)
+    // 2: pass a connection handle and allow each task to make a channel and a producer (problem: dont want each task locking the connection bc it will always be in scope)
+    // 3: force each task to connect separately (seems ridiculous)
     
     let order_producer_handle = Arc::new(Mutex::new(Producer::<CreateOrderMessage>::new(order_channel).await?));
     let cancel_producer_handle = Arc::new(Mutex::new(Producer::<CancelOrderMessage>::new(cancel_channel).await?));
-
-    let fill_consumer_handle = Arc::new(Mutex::new(Consumer::<FillMessage>::new(fill_channel).await?));
-    let order_confirm_consumer_handle = Arc::new(Mutex::new(Consumer::<OrderConfirmMessage>::new(order_confirm_channel).await?));
-    let cancel_confirm_consumer_handle = Arc::new(Mutex::new(Consumer::<CancelConfirmMessage>::new(cancel_confirm_channel).await?));
 
     let client_map_handle = Arc::new(BlockingMutex::new(HashMap::<String, Arc<Mutex<TcpStream>>>::new()));
 
@@ -48,7 +46,7 @@ async fn main() -> Result<()> {
         Arc::clone(&order_producer_handle), 
         Arc::clone(&cancel_producer_handle)));
 
-    // spawn tasks that listen to fill, order confirm, and cancel confirm channels, determine correct client, and send to client
+    tokio::spawn(wait_for_order_confirms(client_map_handle.clone()));
 
 
     Ok(())
@@ -62,7 +60,7 @@ async fn handle_incoming_connections(
 ) -> Result<()> {
     loop {
         let (mut socket, _) = listener.accept().await.unwrap();
-        let mut name_buffer: [u8; 10] = [0; 10];
+        let mut name_buffer: [u8; constants::CLIENT_NAME_SIZE_BYTES] = [0; constants::CLIENT_NAME_SIZE_BYTES];
         let name_length = socket.read(&mut name_buffer).await?;
         
         if let Ok(name_str) = core::str::from_utf8(&name_buffer[..name_length]) {
@@ -93,24 +91,51 @@ async fn handle_client(
 
 async fn wait_for_cancel_confirms(
     clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>,
-    cancel_confirm_handle: Arc<Mutex<Consumer<CancelConfirmMessage>>>
+    connection_handle: Arc<Mutex<Connection>>
 ) -> Result<()> {
 
     todo!()
 }
 
-async fn wait_for_order_confirms(
-    clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>,
-    order_confirm_handle: Arc<Mutex<Consumer<OrderConfirmMessage>>>
-) -> Result<()> {
+async fn wait_for_order_confirms(clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>) -> Result<()> {
+    let connection = Connection::connect(constants::MQ_ADDR, ConnectionProperties::default()).await?;
+    let channel = connection.create_channel().await?;
+
+    let order_confirm_consumer = Consumer::<OrderConfirmMessage>::new(channel).await?;
+
+    loop {
+        let next_confirm = match order_confirm_consumer.get_next().await? {
+            None => continue,
+            Some(confirm) => confirm
+        };
+
+        let (client_id, client_order_id) = match next_confirm.client_order_id {
+            None => {
+                warn!("Received order confirmation message with no client_order_id. Cannot route to destination client!");
+                continue;
+            },
+            Some(clordid) => {
+                match split_client_name(&clordid) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        warn!("Could not split client_order_id {:?} from OrderConfirmMessag. Cannot route to destination client.", clordid);
+                        continue;
+                    }
+                }
+            }
+        };
+    }
 
     todo!()
 }
 
-async fn wait_for_fills(
-    clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>,
-    fill_handle: Arc<Mutex<Consumer<FillMessage>>>
-) -> Result<()> {
+async fn wait_for_fills(clients: Arc<BlockingMutex<HashMap<String, Arc<Mutex<TcpStream>>>>>) -> Result<()> {
+    
 
     todo!()
+}
+
+fn split_client_name(client_order_id: &str) -> Result<(String, String)> {
+
+    todo!();
 }
