@@ -3,6 +3,13 @@ use serde::{Deserialize, de::DeserializeOwned, Serialize};
 use anyhow::Result;
 use bincode::{serialize, deserialize};
 
+use crate::queue_data::{
+    cancels::{CancelConfirmMessage, CancelOrderMessage}, 
+    fills::FillMessage, 
+    orders::CreateOrderMessage, 
+    orders::OrderConfirmMessage
+};
+
 /// Types of queue that queue data can be written to
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
