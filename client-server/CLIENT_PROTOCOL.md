@@ -7,14 +7,14 @@ Ideally, the client and client-server communicate via a low-level information la
 ## High-level Diagram
 ```
 +----------+----------+-----------------------------+
-| Msg Len  | Msg Type | Custom Fields              |
+| Msg Len  | Msg Type | Custom Fields               |
 | (1 byte) | (1 byte) | (variable number of bytes)  |
 +----------+----------+-----------------------------+
 ```
-## Fields
+## Constant Fields
 
 ### - Msg Len
-The first byte of every message denotes the length of the variable-length portion of the message as a standard unsigned 8-bit integer (equivalent to the Rust u8 type).
+The first byte of every message denotes the length of the variable-length portion of the message as a big-endian unsigned 8-bit integer.
 
 ### - Msg Type
 The next byte specifies (via a u8 as above) which type of message is being written according to the below reference:
@@ -26,3 +26,32 @@ The next byte specifies (via a u8 as above) which type of message is being writt
 | ConfirmOrder | 2 | 00000010 |
 | ConfirmCancel | 3 | 00000011 |
 | Fill | 4 | 00000100 |
+
+## Custom Fields
+
+These fields are specific to the MsgType of the message, so we enumerate them for each MsgType below.
+
+### CreateOrder
+```
+add diagram of the fields and their sizes
+```
+
+### CancelOrder
+```
+add diagram of the fields and their sizes
+```
+
+### ConfirmOrder
+```
+add diagram of the fields and their sizes
+```
+
+### Confirm Cancel
+```
+add diagram of the fields and their sizes
+```
+
+### Fill
+```
+add diagram of the fields and their sizes
+```
