@@ -61,12 +61,9 @@ async fn handle_incoming_connections(
 ) -> Result<()> {
     loop {
         let (mut socket, _) = listener.accept().await.unwrap();
-        let mut name_buffer: [u8; constants::CLIENT_NAME_SIZE_BYTES] = [0; constants::CLIENT_NAME_SIZE_BYTES];
-        let name_length = socket.read(&mut name_buffer).await?;
         
-        if let Ok(name_str) = core::str::from_utf8(&name_buffer[..name_length]) {
+        if let Ok(name) = protocol::read::read_login(&socket).await {
             let socket_handle = Arc::new(Mutex::new(socket));
-            let name = name_str.to_string();
 
             { // block off client interaction so the map exits scope and is freed sooner
                 let mut clients = clients.lock().await;
@@ -75,7 +72,7 @@ async fn handle_incoming_connections(
             
             let order_handle = order_handle.clone();
             let cancel_handle = cancel_handle.clone();
-            tokio::spawn(handle_client(socket_handle.clone(), name.clone(), order_handle, cancel_handle));
+            tokio::spawn(handle_client(socket_handle.clone(), name, order_handle, cancel_handle));
         }
     }
 }

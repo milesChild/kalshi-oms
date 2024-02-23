@@ -26,6 +26,7 @@ The next byte specifies (via a u8 as above) which type of message is being writt
 | ConfirmOrder | 2 | 00000010 |
 | ConfirmCancel | 3 | 00000011 |
 | Fill | 4 | 00000100 |
+| Login | 5 | 00000101 | 
 
 ## Custom Fields
 
@@ -55,3 +56,15 @@ add diagram of the fields and their sizes
 ```
 add diagram of the fields and their sizes
 ```
+
+### Login
+```
++----------+----------+---------------------+
+| 00001010 | 00000101 | 10-byte string name |
++----------+----------+---------------------+
+```
+With a login message, the first byte is always the number 10, as the body contains a single, 10-byte field; this field is a 10-byte UTF-8 encoded string, e.g. 10 ASCII characters as bytes, or any combination of UTF-8-encoded Unicode code points that sums to 10 bytes. 
+
+
+## To Do
+- how to relay error states to clients?
